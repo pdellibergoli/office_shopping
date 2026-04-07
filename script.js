@@ -5,16 +5,19 @@ if (SCRIPT_URL === "VITE_REPLACE_URL" && window.location.hostname === 'localhost
     console.error("ERRORE: config.js non trovato o LOCAL_SCRIPT_URL non definito!");
 }
 let db = { utenti: [], prodotti: [], ordini: [] };
-let currentUser = JSON.parse(sessionStorage.getItem('ou_user') || 'null');
+let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 let quantities = {};
 let activeCat = 'tutti';
 
 // ── INIZIALIZZAZIONE ──
 async function init() {
-    if (currentUser) {
-        startApp();
+    await loadData();
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        initApp();
     } else {
-        await loadData();
+        showAuth('login');
     }
 }
 
@@ -68,6 +71,34 @@ async function saveToCloud(type, payload) {
     }
 }
 
+function initApp() {
+    const authWrap = document.getElementById('auth-wrap');
+    const appWrap = document.getElementById('app-wrap');
+    const navBar = document.querySelector('.nav-bar');
+    const fab = document.getElementById('fab-order');
+    const userDisplay = document.getElementById('user-display');
+
+    if (authWrap && appWrap) {
+        // NASCONDI LOGIN
+        authWrap.style.display = 'none';
+        
+        // MOSTRA APP E MENU
+        appWrap.style.display = 'block';
+        if (navBar) navBar.style.display = 'flex';
+        // Il FAB lo mostriamo solo se ci sono prodotti (gestito da updateFab)
+        
+        console.log("Login effettuato: mostro interfaccia.");
+    }
+
+    if (userDisplay && currentUser) {
+        userDisplay.innerText = `Ciao, ${currentUser.name}`;
+    }
+
+    renderCats();
+    renderProducts();
+    updateFab();
+}
+
 // ── NAVIGAZIONE ──
 function switchView(viewId, btn) {
     document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
@@ -78,29 +109,105 @@ function switchView(viewId, btn) {
 }
 
 // ── AUTH ──
-function toggleAuth(screen) {
-    document.getElementById('screen-login').style.display = screen === 'login' ? 'block' : 'none';
-    document.getElementById('screen-signup').style.display = screen === 'signup' ? 'block' : 'none';
+function showAuth(type) {
+    const authWrap = document.getElementById('auth-wrap');
+    const appWrap = document.getElementById('app-wrap');
+    const navBar = document.querySelector('.nav-bar');
+
+    if (authWrap) authWrap.style.display = 'flex';
+    if (appWrap) appWrap.style.display = 'none';
+    if (navBar) navBar.style.display = 'none';
+
+    // Gestione switch Login/Signup
+    const loginBox = document.getElementById('screen-login');
+    const signupBox = document.getElementById('screen-signup');
+    
+    if (type === 'login') {
+        loginBox.style.display = 'block';
+        signupBox.style.display = 'none';
+    } else {
+        loginBox.style.display = 'none';
+        signupBox.style.display = 'block';
+    }
 }
 
-function handleAuth(mode) {
-    if (mode === 'signup') {
-        const name = document.getElementById('su-name').value;
-        const email = document.getElementById('su-email').value;
-        const pass = document.getElementById('su-pass').value;
-        saveToCloud('utenti', { name, email, password: pass });
-        alert("Registrazione inviata! Prova ad accedere tra 5 secondi.");
-        toggleAuth('login');
+function toggleAuth(screen) {
+    const login = document.getElementById('screen-login');
+    const signup = document.getElementById('screen-signup');
+    if (login && signup) {
+        login.style.display = screen === 'login' ? 'block' : 'none';
+        signup.style.display = screen === 'signup' ? 'block' : 'none';
+    }
+}
+
+async function handleAuth(type) {
+    const emailEl = document.getElementById(`${type}-email`);
+    const passEl = document.getElementById(`${type}-pass`);
+    const nameEl = document.getElementById('signup-name');
+
+    if (!emailEl || !passEl) return;
+
+    const email = emailEl.value.trim().toLowerCase(); // Convertiamo in minuscolo per evitare duplicati Case-Sensitive
+    const pass = passEl.value.trim();
+    const name = (type === 'signup' && nameEl) ? nameEl.value.trim() : null;
+
+    if (!email || !pass || (type === 'signup' && !name)) {
+        return alert("Compila tutti i campi richiesti.");
+    }
+
+    // 1. CRIPTIAMO LA PASSWORD
+    const hashedPassword = await hashPassword(pass);
+    console.log("Password hashata generata:", hashedPassword);
+
+    if (type === 'signup') {
+        const listaUtenti = db.utenti || [];
+        const giaPresente = listaUtenti.slice(1).some(u => String(u[1]).toLowerCase().trim() === email);
+
+        if (giaPresente) {
+            return alert("Questa email è già registrata.");
+        }
+
+        await saveToCloud('utenti', { 
+            name: name, 
+            email: email, 
+            pass: hashedPassword 
+        });
+
+        alert("Registrazione completata! Scaricamento dati in corso...");
+        
+        // FORZIAMO il ricaricamento del DB per includere il nuovo utente appena creato
+        await loadData(); 
+        
+        showAuth('login');
     } else {
-        const email = document.getElementById('login-email').value;
-        const pass = document.getElementById('login-pass').value;
-        const user = db.utenti.find(u => u[0] === email && u[1].toString() === pass);
+        // LOGIN - VERSIONE DEBUG
+        const listaUtenti = db.utenti || [];
+        console.log("Database Utenti caricato:", listaUtenti); // Spia 1
+        console.log("Email cercata:", email);
+        console.log("Hash cercato:", hashedPassword);
+
+        const user = listaUtenti.find((u, index) => {
+            if (index === 0) return false; // Salta l'intestazione
+            
+            // Logghiamo ogni riga per vedere se gli indici [1] e [2] sono corretti
+            console.log(`Riga ${index} nel DB:`, u); 
+            
+            const emailDB = String(u[1] || "").trim().toLowerCase();
+            const hashDB = String(u[2] || "").trim();
+            
+            return emailDB === email && hashDB === hashedPassword;
+        });
+
         if (user) {
-            currentUser = { email: user[0], name: user[2] };
-            sessionStorage.setItem('ou_user', JSON.stringify(currentUser));
-            startApp();
+            console.log("UTENTE TROVATO!", user);
+            currentUser = { name: user[0], email: user[1] };
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            initApp();
         } else {
-            document.getElementById('login-err').style.display = 'block';
+            console.warn("NESSUN UTENTE CORRISPONDE");
+            const errEl = document.getElementById('login-err');
+            if (errEl) errEl.style.display = 'block';
+            else alert("Credenziali errate o utente non trovato");
         }
     }
 }
@@ -111,6 +218,14 @@ function startApp() {
     document.getElementById('user-display').textContent = currentUser.name;
     loadData();
     renderCats();
+}
+
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function doLogout() {
@@ -240,10 +355,11 @@ async function sendOrder(event) {
 }
 
 function renderHistory() {
+    if (!currentUser || !currentUser.email) return;
     // Filtriamo gli ordini dell'utente corrente
     const myOrders = (db.ordini || []).slice(1).filter(o => o[1] === currentUser.email);
     const container = document.getElementById('history-list');
-
+    if (!container) return;
     if (myOrders.length === 0) {
         container.innerHTML = "<p style='text-align:center; color:var(--text3); margin-top:20px;'>Nessun ordine trovato.</p>";
         return;
