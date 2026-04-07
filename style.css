@@ -158,8 +158,36 @@ body {
 .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ══ MODAL & PANELS ══ */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+}
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
 .modal-content { background: white; border-radius: 20px; padding: 25px; width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
+.modal-header button {
+    background: none;
+    border: none;
+    font-size: 28px;      /* X bella grande */
+    line-height: 1;
+    color: var(--text3); /* Colore grigio neutro */
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-header button:hover {
+    color: var(--text1); /* Si scurisce al passaggio del mouse */
+}
 
 .order-panel { background: white; border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 15px; }
 

@@ -229,7 +229,9 @@ async function hashPassword(password) {
 }
 
 function doLogout() {
-    sessionStorage.clear();
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('ou_user');
+    quantities = {};
     location.reload();
 }
 
@@ -414,7 +416,6 @@ function showHistoryDetail(index) {
         const cleanLine = line.replace(/^- /, "").trim();
         return `
         <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px;">
-            <span style="margin-right:10px;">📦</span>
             <span style="flex:1;">${cleanLine}</span>
         </div>
         `;
