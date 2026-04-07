@@ -1,3 +1,9 @@
+const SCRIPT_URL = (typeof LOCAL_SCRIPT_URL !== 'undefined') 
+    ? LOCAL_SCRIPT_URL 
+    : "VITE_REPLACE_URL";
+if (SCRIPT_URL === "VITE_REPLACE_URL" && window.location.hostname === 'localhost') {
+    console.error("ERRORE: config.js non trovato o LOCAL_SCRIPT_URL non definito!");
+}
 let db = { utenti: [], prodotti: [], ordini: [] };
 let currentUser = JSON.parse(sessionStorage.getItem('ou_user') || 'null');
 let quantities = {};
