@@ -11,35 +11,53 @@ let activeCat = 'tutti';
 
 // ── INIZIALIZZAZIONE ──
 async function init() {
-    await loadData();
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    if (savedUser && savedUser !== 'null') {
         currentUser = JSON.parse(savedUser);
-        initApp();
+        
+        const authWrap = document.getElementById('auth-wrap');
+        const appWrap = document.getElementById('app-wrap');
+        const navBar = document.querySelector('.nav-bar');
+        
+        if (authWrap && appWrap) {
+            authWrap.style.display = 'none';
+            appWrap.style.display = 'block';
+            if (navBar) navBar.style.display = 'flex';
+        }
+        
+        await loadData();
+
+        initApp(); 
     } else {
         showAuth('login');
+        await loadData();
     }
 }
 
 async function loadData() {
-    const grid = document.getElementById('products-grid');
-    const history = document.getElementById('history-list');
-
-    // Mostriamo il caricamento se i contenitori esistono
-    const loaderHtml = `<div class="loader"><div class="spinner"></div><p>Sincronizzazione...</p></div>`;
-    if (grid) grid.innerHTML = loaderHtml;
-    if (history) history.innerHTML = loaderHtml;
+    const loginBtn = document.querySelector('#screen-login .btn-primary');
+    
+    // Disabilitiamo il tasto login all'inizio del caricamento
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.innerText = "Caricamento dati...";
+    }
 
     try {
         const resp = await fetch(SCRIPT_URL);
         db = await resp.json();
         
-        // Una volta arrivati i dati, generiamo le liste reali
+        // Una volta arrivati i dati, riabilitiamo il tasto
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerText = "Entra";
+        }
+
         renderProducts();
         renderHistory();
     } catch (e) { 
         console.error("Errore caricamento DB", e);
-        if (grid) grid.innerHTML = "<p>Errore di connessione.</p>";
+        if (loginBtn) loginBtn.innerText = "Errore caricamento";
     }
 }
 
@@ -96,6 +114,7 @@ function initApp() {
 
     renderCats();
     renderProducts();
+    renderHistory();
     updateFab();
 }
 
@@ -357,20 +376,23 @@ async function sendOrder(event) {
 }
 
 function renderHistory() {
-    if (!currentUser || !currentUser.email) return;
-    // Filtriamo gli ordini dell'utente corrente
-    const myOrders = (db.ordini || []).slice(1).filter(o => o[1] === currentUser.email);
     const container = document.getElementById('history-list');
     if (!container) return;
+
+    // Se l'utente non è loggato, svuota il contenitore e esci
+    if (!currentUser || !currentUser.email) {
+        container.innerHTML = ""; 
+        return;
+    }
+    // Filtriamo gli ordini dell'utente corrente
+    const myOrders = (db.ordini || []).slice(1).filter(o => o[1] === currentUser.email);
+
     if (myOrders.length === 0) {
         container.innerHTML = "<p style='text-align:center; color:var(--text3); margin-top:20px;'>Nessun ordine trovato.</p>";
         return;
     }
 
-    // Usiamo reverse() per vedere i più recenti in alto
-    // Creiamo una copia per non invertire l'array originale del DB
     const displayOrders = [...myOrders].reverse();
-
     container.innerHTML = displayOrders.map((o, index) => {
         const date = new Date(o[0]).toLocaleDateString('it-IT', { 
             day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
