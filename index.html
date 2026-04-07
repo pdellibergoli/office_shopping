@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordini Ufficio Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="auth-wrap" class="auth-wrap">
+    <div class="auth-panel">
+        <div class="auth-box">
+            <div class="auth-logo">Ordini Ufficio <div class="auth-logo-dot"></div></div>
+            
+            <div id="screen-login">
+                <h2>Accedi</h2>
+                <div id="login-err" class="alert">Credenziali errate</div>
+                <div class="field"><label>Email</label><input type="email" id="login-email"></div>
+                <div class="field"><label>Password</label><input type="password" id="login-pass"></div>
+                <button class="btn-primary" onclick="handleAuth('login')">Entra</button>
+                <div class="auth-switch">Nuovo utente? <a onclick="toggleAuth('signup')">Registrati</a></div>
+            </div>
+
+            <div id="screen-signup" style="display:none">
+                <h2>Registrazione</h2>
+                <div class="field"><label>Nome</label><input type="text" id="su-name"></div>
+                <div class="field"><label>Email</label><input type="email" id="su-email"></div>
+                <div class="field"><label>Password</label><input type="password" id="su-pass"></div>
+                <button class="btn-primary" onclick="handleAuth('signup')">Crea Account</button>
+                <div class="auth-switch">Hai un account? <a onclick="toggleAuth('login')">Accedi</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="app-wrap" class="app-wrap">
+    <div class="topbar">
+        <div class="auth-logo" style="font-size: 18px;">Ordini Ufficio</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span id="user-display" style="font-size:13px; font-weight:600;"></span>
+            <button class="logout-btn" onclick="doLogout()">Esci</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <section id="view-home" class="view-section active">
+            <div class="page-title">Scegli i <em>prodotti</em></div>
+            <div class="cats" id="cats"></div>
+            <div class="grid" id="products-grid"></div>
+        </section>
+
+        <section id="view-catalog" class="view-section">
+            <div class="page-title">Gestione <em>Catalogo</em></div>
+            <div class="order-panel" style="border: 2px dashed var(--border);">
+                <div class="form-group">
+                    <label class="form-label">Nuovo Prodotto</label>
+                    <input class="form-input" id="new-p-name" placeholder="Nome (es. Caffè)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap:10px; margin: 10px 0;">
+                        <input class="form-input" id="new-p-icon" placeholder="Emoji (es. ☕)">
+                        <input class="form-input" id="new-p-unit" placeholder="Unità (es. busta)">
+                    </div>
+                    <select class="form-input" id="new-p-cat">
+                        <option value="igiene">Igiene</option>
+                        <option value="cucina">Cucina</option>
+                        <option value="pulizia">Pulizia</option>
+                        <option value="cancelleria">Cancelleria</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="addNewProduct()">Salva nel Database</button>
+            </div>
+        </section>
+
+        <section id="view-history" class="view-section">
+            <div class="page-title">Il tuo <em>storico</em></div>
+            <div id="history-list" class="history-list"></div>
+        </section>
+    </div>
+
+    <nav class="nav-bar">
+        <button class="nav-item active" onclick="switchView('view-home', this)">
+            <span class="nav-icon">🛒</span><span>Ordine</span>
+        </button>
+        <button class="nav-item" onclick="switchView('view-catalog', this)">
+            <span class="nav-icon">🛠️</span><span>Catalogo</span>
+        </button>
+        <button class="nav-item" onclick="switchView('view-history', this)">
+            <span class="nav-icon">📋</span><span>Storico</span>
+        </button>
+    </nav>
+</div>
+
+<button id="fab-order" class="fab" onclick="openOrderModal()" style="display: none;">
+    🛒 <div id="fab-count" class="fab-badge">0</div>
+</button>
+
+<div id="order-modal" class="modal-overlay" onclick="closeOrderModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            Conferma Ordine
+            <button onclick="closeOrderModal()" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div id="modal-items-list"></div>
+        <div class="form-group" style="margin-top:20px;">
+            <label class="form-label">Email Destinatario</label>
+            <input class="form-input" type="email" id="modal-recv-email" value="purchases@alten.ch">
+        </div>
+        <button class="btn-primary" onclick="sendOrder(event)">Invia Ordine Finale</button>
+    </div>
+</div>
+
+<div id="history-modal" class="modal-overlay" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            Dettaglio Ordine
+            <button onclick="document.getElementById('history-modal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div id="history-detail-date" style="font-size: 12px; color: var(--text3); margin-bottom: 15px;"></div>
+        <div id="history-detail-list">
+            </div>
+        <button class="btn-primary" style="margin-top: 20px; background: var(--text2);" onclick="document.getElementById('history-modal').style.display='none'">
+            Chiudi
+        </button>
+    </div>
+</div>
+<script src="config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
